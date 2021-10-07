@@ -8,7 +8,7 @@ module.exports = mongoose.model('Account', mongoose.Schema({
             }
         },
         userId: {type: mongoose.Schema.Types.ObjectId, ref: 'User'},
-        balance: {type: Number, required: true, min: 0, default: 25},
+        balance: {type: Number, required: true, min: 0, default: 10000},
         currency: {type: String, required: true, default: 'EUR'}
     },
     {

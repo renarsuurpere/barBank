@@ -119,7 +119,51 @@ paths:
                   value:
                     error: Invalid token
           description: Invalid Authorization header
+      security:
+        -
+          bearerAuth: []
       summary: Logout
+  /users/current:
+    get:
+      tags:
+        - users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user'
+              examples:
+                User details:
+                  value:
+                    accounts:
+                      -
+                        balance: 10000
+                        currency: EUR
+                        name: main
+                        number: 0004184d2be7b734df8b6ddc63c19d374a8
+                    id: 615ec367e99e7d1e163feaee
+                    name: Miki Hiir
+                    username: miki
+          description: Returns user's details
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                Missing Authorization header:
+                  value:
+                    error: Missing Authorization header
+                Invalid Authorization header:
+                  value:
+                    error: Invalid Authorization header
+          description: Unauthorized
+      security:
+        -
+          bearerAuth: []
+      summary: Get user's details
+      description: Returns instance of `user`
 components:
   schemas:
     user:
@@ -149,6 +193,11 @@ components:
     session:
       description: ''
       type: object
+  securitySchemes:
+    bearerAuth:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
 tags:
   -
     name: sessions

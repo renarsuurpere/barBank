@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const router = require("express").Router()
 const User = require("../models/User")
 const Account = require("../models/Account")
+const {verifyToken} = require("../middlewares");
 
 router.post('/', async function (req, res) {
 
@@ -17,6 +18,8 @@ router.post('/', async function (req, res) {
 
         // Store user into database
         const user = await new User(req.body).save()
+
+        // Create an account for the user
         await new Account({userId: user.id}).save()
         return res.status(201).end()
     } catch (e) {
@@ -38,4 +41,23 @@ router.post('/', async function (req, res) {
     }
 
 })
+
+router.get('/current', verifyToken, async function (req, res) {
+    // Retrieve user data from database
+    const user = await User.findOne({_id: req.userId})
+    console.log(user)
+
+    // Get user's account data
+    const accounts = await Account.find({userId: req.userId})
+
+    res.status(200).send({
+            id: user.id,
+            name: user.name,
+            username: user.username,
+            accounts: accounts
+        })
+
+})
+
+
 module.exports = router
