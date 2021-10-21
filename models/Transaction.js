@@ -2,6 +2,7 @@ const mongoose = require('mongoose')
 
 module.exports = mongoose.model('Transaction', mongoose.Schema({
 
+        userId: {type: mongoose.Schema.Types.ObjectId, ref: "User"},
         accountFrom: {type: String, required: true, minlength: 4},
         accountTo: {type: String, required: true, minlength: 4},
         amount: {type: Number, required: true, min: 0.01},
@@ -10,7 +11,7 @@ module.exports = mongoose.model('Transaction', mongoose.Schema({
         explanation: {type: String, required: true, minlength: 1},
         senderName: {type: String},
         receiverName: {type: String},
-        status: {type: String, required: true, default: 'pending'},
+        status: {type: String, required: true, default: 'Pending'},
         statusDetail: {type: String}
     }, {
         toJSON: {

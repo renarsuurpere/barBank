@@ -14,9 +14,9 @@ module.exports = mongoose.model('Account', mongoose.Schema({
     {
         toJSON: {
             transform: function (docIn, docOut) {
-        delete docOut._id;
-        delete docOut.__v;
-        delete docOut.userId;
+                delete docOut._id;
+                delete docOut.__v;
+                delete docOut.userId;
             }
         }
     }

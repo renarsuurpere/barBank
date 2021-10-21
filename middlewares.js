@@ -1,5 +1,6 @@
 const Session = require("./models/Session")
 const Bank = require("./models/Bank")
+const Account = require("./models/Account")
 const mongoose = require('mongoose')
 const fetch = require('node-fetch')
 const Transaction = require("./models/Transaction")
@@ -87,7 +88,7 @@ function isExpired(transaction) {
 async function setStatus(transaction, status, statusDetail) {
     transaction.status = status
     transaction.statusDetail = statusDetail
-        await transaction.save();
+    await transaction.save();
 }
 
 async function createSignedTransaction(input) {
@@ -108,50 +109,57 @@ async function createSignedTransaction(input) {
 }
 
 async function sendRequestToBank(destinationBank, transactionAsJwt) {
-    return response = await sendRequest(destinationBank.transactionUrl, {jwt: transactionAsJwt});
+    return await exports.sendPostRequest(destinationBank.transactionUrl, {jwt: transactionAsJwt});
 }
 
-async function sendRequest(url, data) {
+exports.sendPostRequest = async (url, data) => {
+    return await exports.sendRequest('post', url, data)
+}
+
+exports.sendGetRequest = async (url) => {
+    return await exports.sendRequest('get', url, null)
+}
+
+exports.sendRequest = async (method, url, data) => {
     let responseText = '';
 
-    try {
-        let response = await fetch(url, {
-            method: 'post',
-            body: JSON.stringify(data),
-            headers: {'Content-Type': 'application/json'}
-        });
+    let options = {
+        method,
+        headers: {'Content-Type': 'application/json'}
+    }
 
-        responseText = await response.text()
-        const responseObject = JSON.parse(responseText)
-        //console.log(responseObject)
-        return responseObject
+    if (data) {
+        options.body = JSON.stringify(data)
+    }
+
+    try {
+        responseText = await (await fetch(url, options)).text()
+        return JSON.parse(responseText)
     } catch (e) {
-        throw Error(JSON.stringify({
-            exceptionMessage: e.message,
-            responseText
-        }))
+        throw new Error('sendRequest(' + url + '): ' + e.message + (typeof responseText === 'undefined' ? '' : '|' + responseText))
     }
 }
 
-function refund(transaction) {
-    const accountFrom = Account.findOne({number: transaction.accountFrom})
+async function refund(transaction) {
+    const accountFrom = await Account.findOne({number: transaction.accountFrom})
+    if (!accountFrom) {
+        return console.log('Account not found: ' + transaction.accountFrom)
+    }
     accountFrom.balance += transaction.amount
+    await accountFrom.save()
 }
 
 exports.processTransactions = async function () {
-    // console.log('Running processTransactions')
 
     // Get pendingTransactions
-    const pendingTransactions = await Transaction.find({status: 'pending'})
+    const pendingTransactions = await Transaction.find({status: 'Pending'})
 
     // Loop through all pending transactions
-
     pendingTransactions.forEach(async transaction => {
-
         // Assert that the transaction has not started
         if (isExpired(transaction)) {
             await setStatus(transaction, 'Failed', 'Transaction has expired');
-            refund(transaction)
+            await refund(transaction)
             return
         }
 
@@ -172,7 +180,8 @@ exports.processTransactions = async function () {
             }
             destinationBank = Bank.findOne({bankPrefix})
             if (!destinationBank) {
-                refund(transaction);
+                console.log('Failed', 'Bank' + bankPrefix + ' does not exist')
+                await refund(transaction);
                 return await setStatus(transaction, 'Failed', 'Bank ' + bankPrefix + ' does not exist')
             }
         }
@@ -187,6 +196,9 @@ exports.processTransactions = async function () {
                     senderName: transaction.senderName
                 }
             ));
+            if (typeof response.error !== 'undefined') {
+                return await setStatus(transaction, 'Failed', response.error)
+            }
 
             transaction.receiverName = response.receiverName;
             console.log('Completed transaction ' + transaction._id)

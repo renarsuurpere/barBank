@@ -4,15 +4,18 @@ const Account = require("../models/Account")
 const Bank = require("../models/Bank")
 const Transaction = require("../models/Transaction")
 const {verifyToken, refreshListOfBanksFromCentralBank} = require('../middlewares')
+const base64url = require('base64url');
+const jose = require("node-jose");
+const fs = require("fs");
 
-
+function debitAccount(accountFrom, amount) {
+    accountFrom.balance -= amount
+    accountFrom.save()
+}
 
 router.post('/', verifyToken, async function (req, res) {
 
-    function debitAccount(accountFrom, amount) {
-        accountFrom.balance -= req.body.amount
-        accountFrom.save()
-    }
+
 
     try {
 
@@ -75,10 +78,10 @@ router.post('/', verifyToken, async function (req, res) {
             amount: req.body.amount,
             currency: accountFrom.currency,
             accountFrom: req.body.accountFrom,
-            accountTo: req.body.accountFrom,
+            accountTo: req.body.accountTo,
             explanation: req.body.explanation,
             statusDetail,
-            senderName: (await User.findOne( {id: req.userId})).name
+            senderName: (await User.findOne({id: req.userId})).name
         }).save()
 
         // Subtract amount from account
@@ -104,9 +107,103 @@ router.post('/', verifyToken, async function (req, res) {
     }
 })
 
-router.post('/b2b', async (req, res) => {
-    return res.send({receiverName: 'Jaan Tamm'})
+router.get('/jwks', async function (req, res) {
+
+    // Create new keystore
+    const keystore = jose.JWK.createKeyStore();
+
+    // Add our private key from file to the keystore
+    await keystore.add(fs.readFileSync('./private.key').toString(), 'pem')
+
+    // Return our keystore (only the public key derived from the imported private key) in JWKS (JSON Web Key Set) format
+    console.log('/jwks: Exporting keystore and returning it')
+    return res.send(keystore.toJSON())
+
 })
+
+router.post('/b2b', async function (req, res) {
+
+    try {
+        const components = req.body.jwt.split('.')
+
+        const payload = JSON.parse(base64url.decode(components[1]))
+
+
+        const accountTo = await Account.findOne({number: payload.accountTo})
+
+        if (!accountTo) {
+            return res.status(404).send({error: 'Account not found'})
+        }
+
+        const accountFromBankPrefix = payload.accountFrom.substring(0, 3)
+
+        const accountFromBank = await Bank.findOne({bankPrefix: accountFromBankPrefix})
+        if (!accountFromBank) {
+            const result = await refreshListOfBanksFromCentralBank();
+            if (typeof result.error !== 'undefined') {
+                return res.status(502).send({error: "There was an error communication with Central Bank" + result.error});
+            }
+            const accountFromBank = await Bank.findOne({bankPrefix: accountFromBankPrefix})
+
+            if (!accountFromBank) {
+                return res.status(404).send({error: 'Bank ' + accountFromBankPrefix + ' was not found in Central Bank'})
+            }
+        }
+
+
+        // Validate signature
+
+        // const jwks = await sendGetRequest(accountFromBank.jwksUrl)
+        //
+        // const keystore = jose.JWK.asKeyStore(jwks)
+        // try {
+        //     await jose.JWKS.createVerify(keystore).verify(req.body.jwt)
+        // } catch (e) {
+        //     return res.status(400).send({error: 'Invalid signature'})
+        // }
+
+        let amount = payload.amount
+        if (accountTo.currency !== payload.currency) {
+            const rate = await getRates(payload.currency, accountTo.currency)
+            amount = (parseInt(amount) * parseFloat(rate)).toFixed(0)
+        }
+
+        const accountToOwner = await User.findOne({_id: accountTo.userId})
+        console.log('Account balance before: ' + accountTo.balance)
+        accountTo.balance += amount
+        console.log('Account balance after: ' + accountTo.balance)
+        accountTo.save();
+
+        await Transaction.create({
+            userId: accountToOwner._id,
+            accountFrom: payload.accountFrom,
+            accountTo: payload.accountTo,
+            amount: payload.amount,
+            currency: payload.currency,
+            createdAt: payload.createdAt,
+            explanation: payload.explanation,
+            senderName: payload.senderName,
+            receiverName: accountToOwner.name,
+            status: 'Completed'
+        })
+
+
+        res.send({receiverName: accountToOwner.name})
+    } catch (e) {
+        return res.status(500).send({error: e.message})
+    }
+})
+
+async function getRates(from, to) {
+    const response = await axios.get('https://api.exchangerate.host/latest?base=' + from)
+    console.log(`Converting ${from} to ${to}`)
+    for (const rate in response.data.rates) {
+        if (rate === to) {
+            console.log(`Rate is: ${response.data.rates[rate]}`)
+            return response.data.rates[rate]
+        }
+    }
+}
 
 module.exports = router
 
