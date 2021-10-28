@@ -16,13 +16,12 @@ function debitAccount(accountFrom, amount) {
 router.post('/', verifyToken, async function (req, res) {
 
 
-
     try {
 
         let statusDetail;
 
         // Get account data from DB
-        const accountFrom = await Account.findOne({number: req.body.accountFrom, userId: req.userId})
+        const accountFrom = await Account.findOne({number: req.body.accountFrom})
 
         // 404 accountFrom not found
         if (!accountFrom) {
@@ -81,7 +80,7 @@ router.post('/', verifyToken, async function (req, res) {
             accountTo: req.body.accountTo,
             explanation: req.body.explanation,
             statusDetail,
-            senderName: (await User.findOne({id: req.userId})).name
+            senderName: (await User.findOne({_id: accountFrom.userId})).name
         }).save()
 
         // Subtract amount from account

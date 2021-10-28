@@ -7,4 +7,13 @@ module.exports = mongoose.model('User', mongoose.Schema({
     accounts: [
         {type: mongoose.Schema.Types.ObjectId, ref: "Account"}
     ]
-}))
+}, {
+        toJSON: {
+            transform: (docIn, docOut) => {
+                docOut.id = docOut._id
+                delete docOut._id
+                delete docOut.__v
+            }
+        }
+    }
+))

@@ -31,7 +31,6 @@ exports.verifyToken = async (req, res, next) => {
 
     // Find a session with given token
     const session = await Session.findOne({_id: authorizationHeader[1]})
-
     // Check that the session existed
     if (!session) return res.status(401).send({error: 'Invalid token'})
 
