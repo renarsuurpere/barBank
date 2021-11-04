@@ -120,7 +120,8 @@ paths:
                     error: Invalid token
           description: Invalid Authorization header
       security:
-        - bearerAuth: [ ]
+        -
+          bearerAuth: []
       summary: Logout
   /users/current:
     get:
@@ -136,7 +137,8 @@ paths:
                 User details:
                   value:
                     accounts:
-                      - balance: 10000
+                      -
+                        balance: 10000
                         currency: EUR
                         name: main
                         number: 0004184d2be7b734df8b6ddc63c19d374a8
@@ -158,7 +160,8 @@ paths:
                     error: Invalid Authorization header
           description: Unauthorized
       security:
-        - bearerAuth: [ ]
+        -
+          bearerAuth: []
       summary: Get user's details
       description: Returns instance of `user`
   /transactions:
@@ -166,6 +169,49 @@ paths:
     description: >-
       The REST endpoint/path used to list and create zero or more `transaction` entities.  This path
       contains a `GET` and `POST` operation to perform the list and create tasks, respectively.
+    get:
+      tags:
+        - transactions
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/transaction'
+              examples:
+                ' GET /transactions 200 response':
+                  value:
+                    accountFrom: be824c28eb4075a3c06585e3c697800034e
+                    accountTo: 92c84bb50b65304f534480390cc90aafcbc
+                    amount: 100
+                    createdAt: '2021-10-21T18:38:02.678Z'
+                    currency: EUR
+                    receiverName: Kristi Maask
+                    senderName: Renar Suurpere
+                    status: Completed
+          description: 'List of all user''s transactions with accounts from, names from, sums and date.'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                Invalid Authorization header:
+                  value:
+                    error: Invalid Authorization header
+                Missing Authorization header:
+                  value:
+                    error: Missing Authorization header
+                Invalid token:
+                  value:
+                    error: Invalid token
+          description: Unauthorized
+      security:
+        -
+          bearerAuth: []
+      operationId: gettransactions
+      summary: Returns list of transactions
+      description: 'Returns all transactions of user with accounts from, names from, sums and date.'
     post:
       requestBody:
         description: A new `transaction` to be created.
@@ -180,7 +226,6 @@ paths:
         '201':
           description: Successful response.
         '400':
-          description: Bad request.
           content:
             application/json:
               schema:
@@ -196,11 +241,12 @@ paths:
                   value:
                     error: Path `.*` (`.*`) is shorter than the minimum allowed length
                 'Transaction validation failed: explanation: Path `explanation` is required.':
+                  description: Bad request
                   value:
                     error: >-
                       Transaction validation failed: explanation: Path `explanation` is
                       required.
-                  description: Bad request
+          description: Bad request.
         '401':
           content:
             application/json:
@@ -235,7 +281,8 @@ paths:
                     error: accountFrom not found
           description: Not found
       security:
-        - bearerAuth: [ ]
+        -
+          bearerAuth: []
       operationId: createtransaction
       summary: Create a transaction
       description: Creates a new instance of a `transaction`.
@@ -388,7 +435,8 @@ components:
                 type: string
       example:
         keys:
-          - kty: RSA
+          -
+            kty: RSA
             kid: QVhlbsNZZY83YRFHS-OWJqiqEMbjoaqhZIiPVRZgW-k
             'n': >-
               RlWISHXpjWXdYGLSB99okpIW8eEL9ochaEMUyZ8bHW46CLXX-kkI8l6ue7KtxuyrWpuOpuzrHtZWp29H6fgyOq1mKZ0heK-XkV1rJoKHd-6wc0Jdpg2SPwC6BWRGcE2HnvHxT0s8pfa_GwTd7Tu27gIR2S7TVx7N86E5jxll7t0
@@ -399,9 +447,12 @@ components:
       bearerFormat: JWT
       type: http
 tags:
-  - name: sessions
+  -
+    name: sessions
     description: ''
-  - name: users
+  -
+    name: users
     description: ''
-  - name: transactions
+  -
+    name: transactions
     description: ''

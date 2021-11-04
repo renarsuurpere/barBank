@@ -7,9 +7,10 @@ const {verifyToken, refreshListOfBanksFromCentralBank} = require('../middlewares
 const base64url = require('base64url');
 const jose = require("node-jose");
 const fs = require("fs");
+const axios = require("axios");
 
 function debitAccount(accountFrom, amount) {
-    accountFrom.balance -= amount
+    accountFrom.balance -= parseInt(amount)
     accountFrom.save()
 }
 
@@ -34,7 +35,7 @@ router.post('/', verifyToken, async function (req, res) {
         }
 
         // 402 Insufficient funds
-        if (req.body.amount > accountFrom.balance) {
+        if (parseInt(req.body.amount) > parseInt(accountFrom.balance)) {
             return res.status(402).send({error: "Insufficient funds"})
         }
 
@@ -169,7 +170,7 @@ router.post('/b2b', async function (req, res) {
 
         const accountToOwner = await User.findOne({_id: accountTo.userId})
         console.log('Account balance before: ' + accountTo.balance)
-        accountTo.balance += amount
+        accountTo.balance += parseInt(amount)
         console.log('Account balance after: ' + accountTo.balance)
         accountTo.save();
 
@@ -203,6 +204,17 @@ async function getRates(from, to) {
         }
     }
 }
+
+router.get('/', verifyToken, async (req, res, next)=>{
+
+    //Get user's transactions
+    const transactions = await  Transaction.find({userId: req.userId})
+
+    // Return them
+
+    res.status(200).json(transactions)
+
+})
 
 module.exports = router
 

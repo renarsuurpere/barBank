@@ -144,7 +144,7 @@ async function refund(transaction) {
     if (!accountFrom) {
         return console.log('Account not found: ' + transaction.accountFrom)
     }
-    accountFrom.balance += transaction.amount
+    accountFrom.balance += parseInt(transaction.amount)
     await accountFrom.save()
 }
 
