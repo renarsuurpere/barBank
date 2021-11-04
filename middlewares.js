@@ -6,6 +6,7 @@ const fetch = require('node-fetch')
 const Transaction = require("./models/Transaction")
 const jose = require('node-jose')
 const fs = require('fs')
+const nock = require("nock");
 
 
 exports.verifyToken = async (req, res, next) => {
@@ -45,8 +46,24 @@ exports.refreshListOfBanksFromCentralBank = async function refreshListOfBanksFro
     console.log('Refreshing list of banks')
 
     try {
+        if (process.env.TEST_MODE === 'true') {
+
+            console.log('TEST_MODE=true');
+            nock(process.env.CENTRAL_BANK_URL)
+                .persist()
+                .get('/banks')
+                .reply(200,
+                    [{
+                        "name": "foobank",
+                        "transactionUrl": "http://localhost:3030/transactions/b2b",
+                        "bankPrefix": "843",
+                        "owners": "John Smith",
+                        "jwksUrl": "http://foobank.diarainfra.com/jwks.json"
+                    }]
+                )
+        }
         // Attempt to get a list of banks in JSON format from central bank
-        let banks = await fetch(process.env.CENTRAL_BANK_URL, {
+        let banks = await fetch(`${process.env.CENTRAL_BANK_URL}/banks`, {
             headers: {'Api-Key': process.env.CENTRAL_BANK_APIKEY}
         }).then(responseText => responseText.json())
 
@@ -186,6 +203,18 @@ exports.processTransactions = async function () {
         }
 
         try {
+            if (process.env.TEST_MODE === 'true') {
+
+                const nockUrl = new URL(destinationBank.transactionUrl)
+
+                console.log('Nocking ' + JSON.stringify(nockUrl));
+
+                nock(`${nockUrl.protocol}//${nockUrl.host}`)
+                    .persist()
+                    .post(nockUrl.pathname)
+                    .reply(200, {receiverName: 'foobar'})
+            }
+
             const response = await sendRequestToBank(destinationBank, await createSignedTransaction({
                     accountFrom: transaction.accountFrom,
                     accountTo: transaction.accountTo,
